@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: EventBridgeTestApp
+Globals:
+  Function:
+    Runtime: nodejs12.x
+    Timeout: 30
+    MemorySize: 128
+
+Resources:
+  EventProducerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EventProducerFunction
+      CodeUri: producer/
+      Handler: handler.producer
+      Events:
+        ProducerApi:
+          Type: Api
+          Properties:
+            Path: /order
+            Method: POST
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Resource: '*'
+            Action:
+              - events:PutEvents      
+
+  ApprovedOrderConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: consumer/
+      FunctionName: ApprovedOrderConsumerFunction
+      Handler: handler.approved
+      Events:
+        Trigger:
+          Type: CloudWatchEvent 
+          Properties:
+            Pattern:
+              source:
+                - com.sufle.events
+              detail-type:
+                - order
+              detail:
+                status: ["approved"]
+
+  RejectedOrderConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: consumer/
+      FunctionName: RejectedOrderConsumerFunction
+      Handler: handler.rejected
+      Events:
+        Trigger:
+          Type: CloudWatchEvent 
+          Properties:
+            Pattern:
+              source:
+                - com.sufle.events
+              detail-type:
+                - order
+              detail:
+                status: ["rejected"]
+
+  SpecificLocationOrderConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: consumer/
+      FunctionName: SpecificLocationOrderConsumerFunction
+      Handler: handler.location
+      Events:
+        Trigger:
+          Type: CloudWatchEvent 
+          Properties:
+            Pattern:
+              source:
+                - com.sufle.events
+              detail-type:
+                - order                
+              detail:
+                cargo:
+                  - "prefix": "IST-"
+Outputs:
+  ApiURL:
+    Description: "API endpoint URL for Producer"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
